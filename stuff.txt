@@ -1,0 +1,101 @@
+A. Application received
+Subject: We got your application!
+Hi {{name}}, your video for {{role}} was received.  
+You can track updates anytime here: {{status_link}}.
+
+B. Shortlisted
+Subject: You're shortlisted — book a quick chat
+Hi {{name}}, congrats! Please schedule a 15-min call: {{calendly_link}}.
+
+C.Respectfull decline 
+Subject: Update on your {{role}} application
+Hi {{name}}, thanks for applying. We're pausing this role for now.  
+You can reapply anytime: {{board_link}}.
+
+-----
+Checlkist :
+
+Pilot Setup — Ultra Detailed
+
+A. Prep Supabase function (Artur) ---- done
+
+Install CLI: run npm install -g supabase (or brew install supabase/tap/supabase).
+Log in: in terminal at project root (/Users/admin/programming-exercises/_projects_/hr_saas/oasis-mvp), run supabase login, paste your Supabase access token, hit Enter.
+Link project: run supabase link --project-ref your-project-ref (find the ref in Supabase dashboard → Settings → General).
+Create function folder: run supabase functions new hr-actions; this creates supabase/functions/hr-actions/index.ts.
+Open Supabase dashboard: Settings → API → copy the project URL plus service-role key (keep private).
+Set function secrets: in terminal, run:
+supabase secrets set SUPABASE_URL=https://<project>.supabase.co
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+supabase secrets set HR_API_KEY=<any-strong-secret>
+Hand me the HR_API_KEY value (privately) and confirm the function file is ready for edits.
+
+B. Code function + frontend (Codex)
+8. I’ll fill supabase/functions/hr-actions/index.ts with the POST /list-applicants and /update-status handlers, using the service key and HR_API_KEY.
+9. I’ll adjust React hooks so:
+
+Tracker requests send x-tracker-token header.
+HR dashboard fetches from VITE_HR_API_URL with VITE_HR_API_KEY.
+Status updates call the /update-status endpoint.
+
+C. Deploy function + env vars (Artur)
+10. After code is ready, run supabase functions deploy hr-actions.
+11. In Supabase dashboard → Project Settings → API → note the Functions URL (looks like https://<project>.functions.supabase.co).
+12. In oasis-mvp/.env, add:
+VITE_SUPABASE_URL=https://<project>.supabase.co VITE_SUPABASE_KEY=<anon-key> VITE_HR_API_URL=https://<project>.functions.supabase.co/hr-actions VITE_HR_API_KEY=<same secret as step 6>
+13. Restart npm run dev so Vite picks up the new env values.
+
+D. RLS policies for pilot (Artur, via Supabase SQL editor)
+14. Run these statements one by one:
+```sql
+-- applications table
+alter table public.applications enable row level security;
+drop policy if exists anon_applications_insert on public.applications;
+create policy anon_applications_insert
+on public.applications
+for insert
+with check (true);
+
+drop policy if exists anon_applications_select on public.applications;
+create policy anon_applications_select
+  on public.applications
+  for select
+  using (
+    tracker_token = current_setting('request.headers.x-tracker-token', true)
+  );
+
+-- actions table
+alter table public.actions enable row level security;
+drop policy if exists anon_actions_select on public.actions;
+create policy anon_actions_select
+  on public.actions
+  for select
+  using (
+    exists (
+      select 1
+      from public.applications a
+      where a.id = actions.application_id
+        and a.tracker_token = current_setting('request.headers.x-tracker-token', true)
+    )
+  );
+
+-- grants
+grant usage on schema public to anon;
+grant insert, select on public.applications to anon;
+grant select on public.actions to anon;
+```  
+E. Test flow (Artur, in browser + Supabase)
+15. Run npm run dev, open the applicant site (likely http://localhost:5173).
+16. Submit an application (record/upload/text) → confirm in Supabase dashboard applications table a new row appears.
+17. Copy the generated tracker link → visit http://localhost:5173/tracker?token=...; confirm status loads (I will ensure code attached header).
+18. Open /hr page → confirm applicant list populates; click “Shortlist” or other buttons, verify status updates in Supabase row and new entry appears in actions.
+19. Reload tracker page → status moves forward.
+
+F. Pilot handoff
+20. Share with HR reviewers:
+- Dashboard URL (/hr).
+- HR API key (VITE_HR_API_KEY).
+- Instructions: use latest browser, keep key confidential.
+21. If you need email automations, set VITE_ZAPIER_NEW_APP and VITE_ZAPIER_STATUS_UPDATE in .env and configure Zapier per earlier doc (zapier_config.md).
+
+Once steps 1–19 are complete, the pilot stack is ready. Let me know when the secrets are set so I can jump in for Steps 8–9.

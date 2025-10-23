@@ -59,4 +59,5 @@ netlify deploy --prod
 Add the environment variables from `.env` in the Netlify dashboard (Site settings → Build & deploy → Environment). Point `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`, `VITE_ZAPIER_NEW_APP`, and `VITE_ZAPIER_STATUS_UPDATE` at the production credentials before triggering the deploy.
 
 ## Status Update (Oct 23, 2025)
-- Oasis MVP is paused while we pivot; latest context lives at https://notion.so/oasis-pivot.
+- Oasis MVP is paused while we pivot.
+  
